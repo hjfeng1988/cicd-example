@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../base
+
+images:
+- name: banana
+  newName: registry.cn-hangzhou.aliyuncs.com/fruits/banana
+  newTag: 0.0.3
+
+patches:
+- path: patch.yaml

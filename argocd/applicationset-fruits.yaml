@@ -1,0 +1,29 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: fruits-dev
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - list:
+      elements:
+      - appName: apple
+      - appName: banana
+      - appName: cherry
+  template:
+    metadata:
+      name: fruits-{{.appName}}-dev
+    spec:
+      project: fruits
+      source:
+        repoURL: https://demo-gitlab.your.com/ops/fruits.git
+        targetRevision: HEAD
+        path: '{{.appName}}/dev'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: frutis-dev
+      syncPolicy:
+        automated: {}

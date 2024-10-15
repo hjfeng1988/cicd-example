@@ -1,0 +1,39 @@
+stages:
+  - go-build
+  - docker-build
+
+
+编译:
+  stage: go-build
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - app
+  script:
+    - export CGO_ENABLED=0
+    - export GOPROXY=https://goproxy.io
+    - go build
+
+构建镜像:
+  stage: docker-build
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - app
+  script:
+    # prepare variables
+    - app_project=$(echo $CI_PROJECT_NAMESPACE | awk -F/ '{print $NF}')
+    - app_name=$CI_PROJECT_NAME
+    - app_branch=$CI_COMMIT_BRANCH
+    - app_tag=$(date +%Y%m%d_%H%M)
+    # docker build and push
+    - wget -q https://demo-gitlab.your.com/ops/gitlab-ci/-/raw/main/Dockerfile_go -O Dockerfile
+    - docker build . -t $registry_host/$app_project/$app_name:$app_tag
+    - echo $registry_pass | docker login -u $registry_user --password-stdin $registry_host
+    - docker push $registry_host/$app_project/$app_name:$app_tag
+    - docker rmi $registry_host/$app_project/$app_name:$app_tag
+    - docker logout $registry_host
+  only:
+    - dev
+    - staging
+    - prod

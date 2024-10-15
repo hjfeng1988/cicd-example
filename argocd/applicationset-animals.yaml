@@ -1,0 +1,31 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: animals-dev
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - list:
+      elements:
+      - appName: cat
+      - appName: dog
+      - appName: duck
+  template:
+    metadata:
+      name: animals-{{.appName}}-dev
+    spec:
+      project: animals
+      source:
+        repoURL: https://demo-gitlab.your.com/ops/animals.git
+        targetRevision: HEAD
+        path: '{{.appName}}'
+        valueFiles:
+          - values-dev.yaml
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: animals-dev
+      syncPolicy:
+        automated: {}

@@ -1,0 +1,57 @@
+stages:
+  - go-build
+  - docker-build
+
+
+编译:
+  stage: go-build
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - app
+  script:
+    - export CGO_ENABLED=0
+    - export GOPROXY=https://goproxy.io
+    - go build
+
+构建镜像:
+  stage: docker-build
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - app
+  script:
+    # prepare variables
+    - app_project=$(echo $CI_PROJECT_NAMESPACE | awk -F/ '{print $NF}')
+    - app_name=$CI_PROJECT_NAME
+    - app_branch=$CI_COMMIT_BRANCH
+    - app_tag=$(date +%Y%m%d_%H%M)
+    # docker build and push
+    - wget -q https://demo-gitlab.your.com/ops/gitlab-ci/-/raw/main/Dockerfile_go -O Dockerfile
+    - docker build . -t $registry_host/$app_project/$app_name:$app_tag
+    - echo $registry_pass | docker login -u $registry_user --password-stdin $registry_host
+    - docker push $registry_host/$app_project/$app_name:$app_tag
+    - docker rmi $registry_host/$app_project/$app_name:$app_tag
+    - docker logout $registry_host
+    # modify deploy tag
+    - |
+      git clone https://$cd_user:$cd_token@demo-gitlab.your.com/ops/$app_project.git --depth 1 && cd $app_project
+      if [ ! -f $app_name/values-$app_branch.yaml ];then
+        echo "unsupport app or branch."
+        exit 1
+      fi
+      sed -i 's/^  tag:.*/  tag: "'$app_tag'"/' $app_name/values-$app_branch.yaml
+      git add .
+      git commit -m "$app_name $app_branch $app_tag"
+      git push
+      if [ $? -eq 0 ];then
+          echo "push success."
+          exit 0
+      else
+          echo "push fail."
+          exit 1
+      fi
+  only:
+    - dev
+    - staging
+    - prod
